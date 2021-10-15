@@ -78,7 +78,8 @@ publish-data:
   stage: process
   interruptible: false
   script:
-    - ./publish-decp.sh
+    # - ./publish-decp.sh
+    - echo "publish-data"
   rules:
     # exécution sur les schedules
     - if: $CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_DATA
@@ -111,7 +112,8 @@ publish-data-aws:
   script:
     - mkdir -p sources/aws-marchespublics
     - cd sources/aws-marchespublics
-    - ../../decp-aws/publish-marches-public.info.sh
+    # - ../../decp-aws/publish-marches-public.info.sh
+    - echo "publish-data-aws"
   rules:
     # exécution sur les schedules
     - if: $CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_DATA_AWS
