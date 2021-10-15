@@ -5,12 +5,6 @@ stages:
 
 default:
   image: 139bercy/decp-rama
-  cache:
-    key: data-$CI_COMMIT_REF_SLUG
-    paths:
-      - "json/"
-      - "xml/"
-      - "sources/"
   # before_script:
   #   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   #   - git config --global user.name "Gitlab CI/CD"
@@ -39,6 +33,12 @@ get-data-daily:
       - "xml/"
       - "sources/"
     expire_in: 3 hours
+  cache:
+    key: data-$CI_COMMIT_REF_SLUG
+    paths:
+      - "json/"
+      - "xml/"
+      - "sources/"
   rules:
     # exécution sur les schedules
     - if: $CI_PIPELINE_SOURCE == "schedule" && $GET_DATA
@@ -68,11 +68,24 @@ process-data:
       # - "decp_*.xml"
       - "json/decp.ocds.json"
     expire_in: 3 hours
+  cache:
+    key: data-$CI_COMMIT_REF_SLUG
+    paths:
+      - "json/"
+      - "xml/"
+      - "sources/"
   rules:
     # exécution sur les branches autres que master
     - if: $CI_COMMIT_REF_NAME != "master"
     # exécution si le message de commit contient [process-data]
     - if: $CI_COMMIT_MESSAGE =~ /.*\[process-data\].*/
+
+process-data-schedule:
+  extends:
+    - process-data
+  rules:
+  # exécution sur les schedules
+  - if: $CI_PIPELINE_SOURCE == "schedule" && $PROCESS_DATA
 
 publish-data:
   stage: process
@@ -119,3 +132,6 @@ publish-data-aws:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_DATA_AWS
     # exécution si le message de commit contient [publish-data-aws]
     - if: $CI_COMMIT_MESSAGE =~ /.*\[publish-data-aws\].*/
+  needs:
+    - pipeline: $PARENT_PIPELINE_ID
+      job: get-data-aws
