@@ -31,7 +31,7 @@ get-data-daily:
     #  suppression des données du cache pour reconstruire celui-ci de zéro
     - rm -rf json/* xml/* || mkdir -p json xml || true
     # suppression de tous les fichiers dans sources sauf metadata.json
-    - rm -rf !(sources/metadata.json)
+    - rm -rf $(find sources/. -name "*" ! -name "metadata.json") || true
     - ./process.sh all get only
   artifacts:
     paths:
