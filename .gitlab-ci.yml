@@ -28,6 +28,7 @@ get-data-daily:
   stage: get
   interruptible: true
   script:
+    #  suppression des données du cache pour reconstruire celui-ci de zéro
     - rm -rf json/* xml/* || mkdir -p json xml || true
     # suppression de tous les fichiers dans sources sauf metadata.json
     - rm -rf !(sources/metadata.json)
@@ -42,9 +43,9 @@ get-data-daily:
     # exécution sur les schedules
     - if: $CI_PIPELINE_SOURCE == "schedule" && $GET_DATA
     # exécution si le message de commit contient [get-data-daily]
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_MESSAGE =~ /.*\[get-data-daily\].*/
+    - if: $CI_COMMIT_MESSAGE =~ /.*\[get-data-daily\].*/
     # exécution si les fichiers suivants sont modifiés et que ce n'est pas la branche master
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != "master"
+    - if: $CI_COMMIT_REF_NAME != "master"
       changes:
         - sources/metadata.json
         - scripts/sources/
@@ -69,9 +70,9 @@ process-data:
     expire_in: 3 hours
   rules:
     # exécution sur les branches autres que master
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != "master"
+    - if: $CI_COMMIT_REF_NAME != "master"
     # exécution si le message de commit contient [process-data]
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_MESSAGE =~ /.*\[process-data\].*/
+    - if: $CI_COMMIT_MESSAGE =~ /.*\[process-data\].*/
 
 publish-data:
   stage: process
