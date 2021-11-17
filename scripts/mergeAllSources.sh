@@ -38,4 +38,3 @@ echo ""
 echo "Le fichier consolidé contient $nombreMarchesNoDuplicates marchés après déduplication."
 echo "Il contenait donc $((nombreMarches-nombreMarchesNoDuplicates)) doublons."
 echo ""
-
