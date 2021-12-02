@@ -21,8 +21,10 @@ jobs:
           - run: date +%F > date
           - run:
               name: Récupération des données
+              no_output_timeout: 2h
               command: |
                    ./process.sh all get only
+                   ./process.sh all fix only
           - save_cache:
               key: data-in-{{ .Branch }}-{{ checksum "sources/metadata.json" }}-{{ checksum "date" }}
               paths:
@@ -44,7 +46,6 @@ jobs:
                 name: Traitement des données
                 no_output_timeout: 6h
                 command: |
-                     ./process.sh all fix only
                      ./process.sh all convert only
                      ./process.sh all package only
                      ./process.sh all package nothing # traitement final pour regrouper toutes les données
