@@ -10,12 +10,12 @@ RUN git clone https://github.com/OpenDataServices/flatten-tool.git
 # install jq manually because of performance issues in release 1.6
 RUN mkdir jq
 RUN git clone https://github.com/stedolan/jq.git jq/repo
-RUN cd jq/repo && git checkout a9f97e9e61a910a374a5d768244e8ad63f407d3e && git submodule update --init \
+RUN cd /deps/jq/repo && git checkout a9f97e9e61a910a374a5d768244e8ad63f407d3e && git submodule update --init \
   && autoreconf -fi && ./configure --with-oniguruma=builtin --disable-maintainer-mode --prefix=$PWD/.. \
   && make && make install
-
 RUN chmod +x jq
-RUN cd xml2json && make
+
+RUN cd /deps/xml2json && make
 RUN cd /deps/flatten-tool
 RUN python3 -m venv .ve
 #RUN source .ve/bin/activate
