@@ -12,7 +12,7 @@
 # fail on error
 set -e
 
-case ${CIRCLE_BRANCH} in
+case ${GITHUB_REF_NAME} in
     # La publication n'est appliquée que sur la branche master.
     master)
 
@@ -23,7 +23,7 @@ case ${CIRCLE_BRANCH} in
     export resource_id_ocds="68bd2001-3420-4d94-bc49-c90878df322c"
 
 
-    #API_KEY configurée dans les options de build de CircleCI
+    #API_KEY configurée dans les options de build de GitHub
     api_key=$API_KEY
 
 
@@ -63,7 +63,7 @@ case ${CIRCLE_BRANCH} in
 
         date=`date "+%F"`
 
-        echo "Publication de decp_$date.${ext}..."
+        echo "Publication de decp_$date.${ext}..."  
 
         curl "$api/datasets/$dataset_id/upload/" -F "file=@results/decp_${date}.${ext}" -F "filename=decp_$date" -H "X-API-KEY: $api_key" > dailyResource.json
 
