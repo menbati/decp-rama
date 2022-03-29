@@ -2,6 +2,7 @@ name: DECP
 on:
   schedule:
     - cron: '0 1 * * 2,4,6'
+  workflow_dispatch:
 jobs:
   collect:
     name: Collecte des données
