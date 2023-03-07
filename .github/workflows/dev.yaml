@@ -1,0 +1,252 @@
+name: Developpement
+on:
+  push:
+    branches:
+      - '!master'
+      - '!main'
+  pull_request:
+    branches:
+      - master
+jobs:
+  collect:
+    name: Collecte des données
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache.outputs.KEY }}
+    container:
+      image: 139bercy/decp-rama
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Préparation
+        id: cache
+        run: |
+          KEY_CACHE="$(echo $GITHUB_REF_NAME)-$(date '+%Y%m%d')-${{ hashFiles('sources/metadata.json') }}-data-${{ github.event.inputs.cache-key-suffix }}";
+          echo "::set-output name=KEY::$KEY_CACHE"
+      
+      - name: Test présence de données en cache
+        uses: actions/cache@v3.0.0
+        id: cache-in
+        with:
+          path: |
+            json/
+            xml/
+            sources/
+          key: ${{ steps.cache.outputs.KEY }}
+      
+      - name: Vérification des données en cache
+        if: steps.cache-in.outputs.cache-hit == 'true'
+        run: |
+          echo "Données déjà traitées aujourd'hui !"
+      
+      - name: Récupération des données
+        if: steps.cache-in.outputs.cache-hit != 'true'
+        run: |
+         ./process.sh all get only
+      
+      - name: Correction des données
+        if: steps.cache-in.outputs.cache-hit != 'true'
+        run: |
+         ./process.sh all fix only
+          
+      - name: Mise en cache de données
+        if: steps.cache-in.outputs.cache-hit != 'true'
+        uses: actions/cache@v3.0.0
+        with:
+          path: |
+            json/
+            xml/
+            sources/
+          key: ${{ steps.cache.outputs.KEY }}
+
+  process:
+    name: Traitement des données
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache.outputs.KEY }}
+    needs: collect
+    container:
+      image: 139bercy/decp-rama
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Récupération des données provenant du job collect
+        uses: actions/cache@v3.0.0
+        id: cache-in
+        with:
+          path: |
+            json/
+            xml/
+            sources/
+          key: ${{ needs.collect.outputs.cache-key }}
+
+      - name: Préparation
+        id: cache
+        if: steps.cache-in.outputs.cache-hit == 'true'
+        run: |
+          echo "::set-output name=KEY::${{ needs.collect.outputs.cache-key }}-out"
+      
+      - name: Test présence de données déjà traitées (en cache)
+        uses: actions/cache@v3.0.0
+        id: cache-out
+        with:
+          path: |
+            json/decp.json
+            json/decp.ocds.json
+            xml/decp.xml
+            results
+          key: ${{ steps.cache.outputs.KEY }}
+      
+      - name: Vérification si données déjà traitées
+        if: steps.cache-in.outputs.cache-hit == 'true' && steps.cache-out.outputs.cache-hit == 'true'
+        run: |
+          echo "Données déjà traitées aujourd'hui !"
+
+      - name: Conversions des données
+        if: steps.cache-in.outputs.cache-hit == 'true' && steps.cache-out.outputs.cache-hit != 'true'
+        run: | 
+          ./process.sh all convert only
+      
+      - name: Consolidation des données
+        if: steps.cache-in.outputs.cache-hit == 'true' && steps.cache-out.outputs.cache-hit != 'true'
+        run: |
+          ./process.sh all package only
+
+      - name: Regroupement des données
+        if: steps.cache-in.outputs.cache-hit == 'true' && steps.cache-out.outputs.cache-hit != 'true'
+        run: | 
+          ./process.sh all package nothing # traitement final pour regrouper toutes les données
+
+      - name: Mise en cache de résultats
+        if: steps.cache-in.outputs.cache-hit == 'true' && steps.cache-out.outputs.cache-hit != 'true'
+        uses: actions/cache@v3.0.0
+        with:
+          path: |
+            json/decp.json
+            json/decp.ocds.json
+            xml/decp.xml
+            results
+          key: "${{ steps.cache.outputs.KEY }}"
+  
+  publish:
+    name: "Checks publication des données"
+    runs-on: ubuntu-latest
+    needs: process
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Récupération des données en cache
+        uses: actions/cache@v3.0.0
+        id: cache-in
+        with:
+          path: |
+            json/decp.json
+            json/decp.ocds.json
+            xml/decp.xml
+            results
+          key: ${{ needs.process.outputs.cache-key }}
+
+      - name: Vérification présence fichiers issus du cache
+        if: steps.cache-in.outputs.cache-hit == 'true'
+        run: |
+          erreur=0
+          ls -alh json/
+          if [ -f json/decp.json ]
+          then
+            echo "Fichier json/decp.json présent"
+            ls -alh json/decp.json
+          else
+            echo "Fichier json/decp.json introuvable"
+            erreur=1
+          fi
+          if [ -f json/decp.ocds.json ]
+          then
+            echo "Fichier json/decp.ocds.json présent"
+            ls -alh json/decp.ocds.json
+          else
+            echo "Fichier json/decp.ocds.json introuvable"
+            erreur=1
+          fi
+          if [ -f xml/decp.xml ]
+          then
+            echo "Fichier xml/decp.xml présent"
+            ls -alh xml/decp.xml
+          else
+            echo "Fichier xml/decp.xml introuvable"
+            erreur=1
+          fi
+          if [ -d results ]
+          then
+            echo "Répertoire results présent"
+            ls -alh results/
+          else 
+            echo "Répertoire results introuvable"
+            erreur=1
+          fi
+          exit $erreur
+
+  collect-marches-publics:
+    name: Collecte des données Marchés Publics
+    environment: decp-aws
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.prepare.outputs.cachekey }}
+      date-debut: ${{ steps.prepare.outputs.dateDebut }}
+      date-fin: ${{ steps.prepare.outputs.dateFin }}
+    container:
+      image: 139bercy/decp-rama
+      env: 
+        LAST_YEAR: ${{ secrets.LAST_YEAR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Préparation
+        id: prepare
+        run: |
+          KEY_CACHE="$(echo $GITHUB_REF_NAME)-$(date '+%Y%m%d')-${{ hashFiles('decp-aws/get-marches-public.info.sh') }}-data";
+          echo "::set-output name=cachekey::$KEY_CACHE"
+          
+          # Prise en compte de l'exécution du schedule annually
+          if [ "$LAST_YEAR" = "true" ]
+          then
+            echo "Calcul des dates..."
+            dateDebut="$(date -d '-1year' +%Y)-01-01"
+            dateFin="$(date -d '-1year' +%Y)-12-31"
+            echo "::set-output name=dateDebut::$dateDebut"
+            echo "::set-output name=dateFin::$dateFin"
+          fi
+      
+      - name: Test présence de données en cache
+        uses: actions/cache@v3.0.0
+        id: cache-in
+        with:
+          path: |
+            sources/
+          key: ${{ steps.prepare.outputs.cachekey }}
+      
+      - name: Vérification des données en cache
+        if: steps.cache-in.outputs.cache-hit == 'true'
+        run: |
+          echo "Données déjà traitées aujourd'hui !"
+      
+      - name: Récupération des données
+        if: steps.cache-in.outputs.cache-hit != 'true'
+        env:
+          dateDebut: ${{ steps.prepare.outputs.dateDebut }}
+          dateFin: ${{ steps.prepare.outputs.dateFin }}
+        run: |
+          mkdir -p sources/aws-marchespublics
+          cd sources/aws-marchespublics
+          ../../decp-aws/get-marches-public.info.sh
+          
+      - name: Mise en cache de données
+        if: steps.cache-in.outputs.cache-hit != 'true'
+        uses: actions/cache@v3.0.0
+        with:
+          path: |
+            sources/
+          key: ${{ steps.prepare.outputs.cachekey }}
